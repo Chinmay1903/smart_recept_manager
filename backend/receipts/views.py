@@ -122,6 +122,89 @@ class UploadReceiptView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+class ValidateReceiptView(APIView):
+    def post(self, request, *args, **kwargs):
+        receipt_file_id = request.data.get('receipt_file_id')
+        if not receipt_file_id:
+            return Response({'error': 'receipt_file_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            receipt_file = ReceiptFile.objects.get(id=receipt_file_id)
+        except ReceiptFile.DoesNotExist:
+            return Response({'error': 'ReceiptFile not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        full_file_path = os.path.join(settings.MEDIA_ROOT, receipt_file.file_path)
+
+        is_valid, invalid_reason = validate_pdf(full_file_path)
+
+        receipt_file.is_valid = is_valid
+        receipt_file.invalid_reason = invalid_reason
+        receipt_file.save()
+
+        serializer = ReceiptFileSerializer(receipt_file)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+class ProcessReceiptView(APIView):
+    def post(self, request, *args, **kwargs):
+        receipt_file_id = request.data.get('receipt_file_id')
+        if not receipt_file_id:
+            return Response({'error': 'receipt_file_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            receipt_file = ReceiptFile.objects.get(id=receipt_file_id)
+        except ReceiptFile.DoesNotExist:
+            return Response({'error': 'ReceiptFile not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not receipt_file.is_valid:
+            return Response({'error': f'File is not valid: {receipt_file.invalid_reason}'}, status=status.HTTP_400_BAD_REQUEST)
+        if receipt_file.is_processed:
+            return Response({'message': 'Receipt already processed.'}, status=status.HTTP_200_OK)
+
+        full_file_path = os.path.join(settings.MEDIA_ROOT, receipt_file.file_path)
+
+        try:
+            parsed_data, raw_gemini_response = extract_details_with_gemini(full_file_path)
+
+            if parsed_data is None:
+                receipt_file.is_processed = False
+                receipt_file.invalid_reason = f"Gemini extraction failed: {raw_gemini_response}"
+                receipt_file.save()
+                return Response(
+                    {'message': 'AI extraction failed.', 'receipt_file': ReceiptFileSerializer(receipt_file).data},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+            # Basic check if Gemini yielded meaningful data
+            if not parsed_data.get('merchant_name') and not parsed_data.get('total_amount') and not parsed_data.get('purchased_at'):
+                receipt_file.is_processed = False
+                receipt_file.invalid_reason = "AI extracted text, but parsing yielded no meaningful data or key fields are missing."
+                receipt_file.save()
+                return Response(
+                    {'message': 'AI extracted text, but parsing yielded no meaningful data.', 'receipt_file': ReceiptFileSerializer(receipt_file).data},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+            with transaction.atomic():
+                receipt_instance, created = Receipt.objects.update_or_create(
+                    receipt_file=receipt_file,
+                    defaults={
+                        'purchased_at': parsed_data.get('purchased_at'),
+                        'merchant_name': parsed_data.get('merchant_name'),
+                        'total_amount': parsed_data.get('total_amount'),
+                        'parsed_text': raw_gemini_response,
+                    }
+                )
+                receipt_file.is_processed = True
+                receipt_file.save()
+
+            serializer = ReceiptSerializer(receipt_instance)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            receipt_file.is_processed = False
+            receipt_file.invalid_reason = f"Processing failed: {str(e)}"
+            receipt_file.save()
+            return Response({'error': f'Receipt processing failed: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 class ReceiptListView(APIView):
     def get(self, request, *args, **kwargs):
         receipts = Receipt.objects.select_related('receipt_file').all() # Use select_related for optimized queries

@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -26,6 +27,8 @@ SECRET_KEY = 'django-insecure-g&%=8+sq1idnj(vp8ctc!c$lgw%dqfazho(#n%6f44_pge)x$a
 DEBUG = True
 
 ALLOWED_HOSTS = []
+
+CORS_ALLOW_ALL_ORIGINS = True
 
 
 # Application definition
@@ -120,7 +123,14 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+# Media files settings
+MEDIA_URL = '/media/' 
+# MEDIA_ROOT is the filesystem path where media files are stored
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+GEMINI_API_KEY = "AIzaSyCZQb7TKiLVdFKj-8T6qj7SEIomv5mOAxU" # Your Google Gemini API key

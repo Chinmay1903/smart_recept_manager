@@ -27,6 +27,12 @@
         </form>
 
         <h2 class="text-xl font-semibold text-blue-700 border-b pb-2 mb-4">Receipts List</h2>
+        <div id="tableLoader" class="flex justify-center items-center py-4 hidden">
+            <svg class="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+            </svg>
+        </div>
         <div class="overflow-x-auto">
             <table id="receiptsTable" class="min-w-full bg-white border rounded">
                 <thead>
@@ -60,6 +66,7 @@
         const uploadBtn = document.getElementById('uploadBtn');
         const uploadBtnText = document.getElementById('uploadBtnText');
         const uploadSpinner = document.getElementById('uploadSpinner');
+        const tableLoader = document.getElementById('tableLoader');
 
         function displayMessage(message, type) {
             messageArea.textContent = message;
@@ -67,10 +74,12 @@
             messageArea.style.display = 'block';
             setTimeout(() => {
                 messageArea.style.display = 'none';
-            }, 5000);
+            }, 10000);
         }
 
         async function fetchReceipts() {
+            tableLoader.classList.remove('hidden'); // Show loader
+            receiptsTableBody.innerHTML = ''; // Optionally clear table while loading
             try {
                 const response = await fetch(`${API_BASE_URL}/receipts/`);
                 if (!response.ok) {
@@ -81,6 +90,8 @@
             } catch (error) {
                 console.error('Error fetching receipts:', error);
                 displayMessage(`Failed to fetch receipts: ${error.message}`, 'error');
+            } finally {
+                tableLoader.classList.add('hidden'); // Hide loader
             }
         }
 

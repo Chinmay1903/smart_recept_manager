@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Receipt Manager Frontend</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-gray-800">
+    <div class="container max-w-4xl mx-auto bg-white p-8 rounded-lg shadow mt-8">
+        <h1 class="text-3xl font-bold text-blue-700 border-b pb-2 mb-6">Receipt Manager</h1>
+
+        <div id="message-area" class="hidden mb-4"></div>
+
+        <h2 class="text-xl font-semibold text-blue-700 border-b pb-2 mb-4">Upload Receipt</h2>
+        <form id="uploadForm" class="flex flex-col gap-4 mb-8 p-4 border rounded bg-blue-50">
+            <label for="receiptFile" class="font-medium">Select PDF File:</label>
+            <input type="file" id="receiptFile" name="file" accept="application/pdf" required class="p-2 border rounded">
+            <button id="uploadBtn" type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition flex items-center justify-center gap-2">
+                <span id="uploadBtnText">Upload & Get ID</span>
+                <svg id="uploadSpinner" class="hidden animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                </svg>
+            </button>
+        </form>
+
+        <h2 class="text-xl font-semibold text-blue-700 border-b pb-2 mb-4">Receipts List</h2>
+        <div class="overflow-x-auto">
+            <table id="receiptsTable" class="min-w-full bg-white border rounded">
+                <thead>
+                    <tr>
+                        <th class="px-4 py-2 bg-blue-600 text-white">File ID</th>
+                        <th class="px-4 py-2 bg-blue-600 text-white">File Name</th>
+                        <th class="px-4 py-2 bg-blue-600 text-white">Merchant</th>
+                        <th class="px-4 py-2 bg-blue-600 text-white">Total</th>
+                        <th class="px-4 py-2 bg-blue-600 text-white">Purchase Date</th>
+                        <th class="px-4 py-2 bg-blue-600 text-white">View</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <div id="receiptDetail" class="mt-8 p-6 border rounded bg-blue-50" style="display: none;">
+            <h2 class="text-lg font-semibold text-blue-700 mb-2">Receipt Details</h2>
+            <button onclick="hideDetails()" class="mb-4 bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">Close Details</button>
+            <pre id="detailContent" class="bg-white p-4 rounded border"></pre>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://127.0.0.1:8000/api';
+        const uploadForm = document.getElementById('uploadForm');
+        const receiptsTableBody = document.querySelector('#receiptsTable tbody');
+        const messageArea = document.getElementById('message-area');
+        const receiptDetail = document.getElementById('receiptDetail');
+        const detailContent = document.getElementById('detailContent');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const uploadBtnText = document.getElementById('uploadBtnText');
+        const uploadSpinner = document.getElementById('uploadSpinner');
+
+        function displayMessage(message, type) {
+            messageArea.textContent = message;
+            messageArea.className = `mb-4 message ${type === 'success' ? 'bg-green-100 text-green-800 border border-green-300' : type === 'error' ? 'bg-red-100 text-red-800 border border-red-300' : 'bg-blue-100 text-blue-800 border border-blue-300'} px-4 py-2 rounded`;
+            messageArea.style.display = 'block';
+            setTimeout(() => {
+                messageArea.style.display = 'none';
+            }, 5000);
+        }
+
+        async function fetchReceipts() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/receipts/`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const receipts = await response.json();
+                renderReceipts(receipts);
+            } catch (error) {
+                console.error('Error fetching receipts:', error);
+                displayMessage(`Failed to fetch receipts: ${error.message}`, 'error');
+            }
+        }
+
+        function renderReceipts(receipts) {
+            receiptsTableBody.innerHTML = '';
+            if (receipts.length === 0) {
+                receiptsTableBody.innerHTML = '<tr><td colspan="6" class="text-center py-4">No receipts found. Upload one!</td></tr>';
+                return;
+            }
+
+            receipts.forEach(receipt => {
+                const row = receiptsTableBody.insertRow();
+                const fileId = receipt.receipt_file_details ? receipt.receipt_file_details.id : 'N/A';
+                const fileName = receipt.receipt_file_details ? receipt.receipt_file_details.file_name : 'N/A';
+                const merchant = receipt.merchant_name || 'N/A';
+                const total = receipt.total_amount ? receipt.total_amount : 'N/A';
+                const purchaseDate = receipt.purchased_at ? new Date(receipt.purchased_at).toLocaleDateString() : 'N/A';
+
+                row.insertCell().textContent = fileId;
+                row.insertCell().textContent = fileName;
+                row.insertCell().textContent = merchant;
+                row.insertCell().textContent = total;
+                row.insertCell().textContent = purchaseDate;
+
+                const viewCell = row.insertCell();
+                const viewBtn = document.createElement('button');
+                viewBtn.textContent = 'View Details';
+                viewBtn.className = 'bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700';
+                viewBtn.onclick = () => showReceiptDetails(receipt.id);
+                viewCell.appendChild(viewBtn);
+            });
+        }
+
+        uploadForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const fileInput = document.getElementById('receiptFile');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                displayMessage('Please select a PDF file to upload.', 'error');
+                return;
+            }
+
+            // Show loading spinner
+            uploadBtn.disabled = true;
+            uploadBtnText.textContent = 'Uploading...';
+            uploadSpinner.classList.remove('hidden');
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/upload/`, {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || `Upload failed with status: ${response.status}`);
+                }
+
+                displayMessage(`File "${data.file_name}" uploaded successfully! ReceiptFile ID: ${data.id}`, 'success');
+                fileInput.value = '';
+                await fetchReceipts();
+            } catch (error) {
+                console.error('Upload Error:', error);
+                displayMessage(`Upload failed: ${error.message}`, 'error');
+            } finally {
+                uploadBtn.disabled = false;
+                uploadBtnText.textContent = 'Upload & Get ID';
+                uploadSpinner.classList.add('hidden');
+            }
+        });
+
+        async function showReceiptDetails(receiptId) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/receipts/${receiptId}/`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const detail = await response.json();
+                detailContent.textContent = JSON.stringify(detail, null, 2);
+                receiptDetail.style.display = 'block';
+            } catch (error) {
+                console.error('Error fetching receipt details:', error);
+                displayMessage(`Failed to fetch details for Receipt ID ${receiptId}: ${error.message}`, 'error');
+            }
+        }
+
+        function hideDetails() {
+            receiptDetail.style.display = 'none';
+            detailContent.textContent = '';
+        }
+
+        document.addEventListener('DOMContentLoaded', fetchReceipts);
+    </script>
+</body>
+</html>

@@ -24,13 +24,43 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-g&%=8+sq1idnj(vp8ctc!c$lgw%dqfazho(#n%6f44_pge)x$a'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = []
-
-CORS_ALLOW_ALL_ORIGINS = True
+DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
 
+def split_env_list(value, default=""):
+    """
+    Converts comma-separated env values into a clean Python list.
+
+    Example:
+    "localhost,127.0.0.1,my-app.onrender.com"
+    becomes:
+    ["localhost", "127.0.0.1", "my-app.onrender.com"]
+    """
+    raw_value = os.getenv(value, default)
+    return [item.strip() for item in raw_value.split(",") if item.strip()]
+
+def env_bool(name, default=False):
+    return os.getenv(name, str(default)).lower() in ("true", "1", "yes", "on")
+
+
+ALLOWED_HOSTS = split_env_list(
+    "ALLOWED_HOSTS",
+    "localhost,127.0.0.1"
+)
+
+# Render automatically provides this for deployed services.
+RENDER_EXTERNAL_HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME")
+if RENDER_EXTERNAL_HOSTNAME:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+
+CORS_ALLOW_ALL_ORIGINS = env_bool("CORS_ALLOW_ALL_ORIGINS", False)
+
+if not CORS_ALLOW_ALL_ORIGINS:
+    CORS_ALLOWED_ORIGINS = split_env_list(
+        "CORS_ALLOWED_ORIGINS",
+        "http://localhost:3000,http://127.0.0.1:3000",
+    )
+    
 # Application definition
 
 INSTALLED_APPS = [

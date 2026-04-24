@@ -1,63 +1,241 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Receipt Manager Frontend</title>
+
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Optional runtime config. Create config.js and define window.__APP_CONFIG__. -->
+    <script src="./config.js"></script>
+
+    <style>
+        @keyframes floatIn {
+            from {
+                opacity: 0;
+                transform: translateY(18px) scale(0.98);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: -700px 0;
+            }
+            100% {
+                background-position: 700px 0;
+            }
+        }
+
+        .animate-float-in {
+            animation: floatIn 0.55s ease-out both;
+        }
+
+        .animate-fade-in {
+            animation: fadeIn 0.35s ease-out both;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.88);
+            backdrop-filter: blur(18px);
+            border: 1px solid rgba(255, 255, 255, 0.55);
+        }
+
+        .row-animate {
+            animation: floatIn 0.35s ease-out both;
+        }
+
+        .skeleton {
+            background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 37%, #e5e7eb 63%);
+            background-size: 700px 100%;
+            animation: shimmer 1.3s infinite linear;
+        }
+
+        pre {
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+    </style>
 </head>
-<body class="bg-gray-100 text-gray-800">
-    <div class="container max-w-4xl mx-auto bg-white p-8 rounded-lg shadow mt-8">
-        <h1 class="text-3xl font-bold text-blue-700 border-b pb-2 mb-6">Receipt Manager</h1>
 
-        <div id="message-area" class="hidden mb-4"></div>
-
-        <h2 class="text-xl font-semibold text-blue-700 border-b pb-2 mb-4">Upload Receipt</h2>
-        <form id="uploadForm" class="flex flex-col gap-4 mb-8 p-4 border rounded bg-blue-50">
-            <label for="receiptFile" class="font-medium">Select PDF File:</label>
-            <input type="file" id="receiptFile" name="file" accept="application/pdf" required class="p-2 border rounded">
-            <button id="uploadBtn" type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition flex items-center justify-center gap-2">
-                <span id="uploadBtnText">Upload & Get ID</span>
-                <svg id="uploadSpinner" class="hidden animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
-                </svg>
-            </button>
-        </form>
-
-        <h2 class="text-xl font-semibold text-blue-700 border-b pb-2 mb-4">Receipts List</h2>
-        <div id="tableLoader" class="flex justify-center items-center py-4 hidden">
-            <svg class="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
-            </svg>
-        </div>
-        <div class="overflow-x-auto">
-            <table id="receiptsTable" class="min-w-full bg-white border rounded">
-                <thead>
-                    <tr>
-                        <th class="px-4 py-2 bg-blue-600 text-white">File ID</th>
-                        <th class="px-4 py-2 bg-blue-600 text-white">File Name</th>
-                        <th class="px-4 py-2 bg-blue-600 text-white">Merchant</th>
-                        <th class="px-4 py-2 bg-blue-600 text-white">Total</th>
-                        <th class="px-4 py-2 bg-blue-600 text-white">Purchase Date</th>
-                        <th class="px-4 py-2 bg-blue-600 text-white">View</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </div>
-
-        <div id="receiptDetail" class="mt-8 p-6 border rounded bg-blue-50" style="display: none;">
-            <h2 class="text-lg font-semibold text-blue-700 mb-2">Receipt Details</h2>
-            <button onclick="hideDetails()" class="mb-4 bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">Close Details</button>
-            <pre id="detailContent" class="bg-white p-4 rounded border"></pre>
-        </div>
+<body class="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-indigo-950 text-slate-800">
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute -top-24 -left-24 h-80 w-80 rounded-full bg-blue-500/30 blur-3xl"></div>
+        <div class="absolute top-1/3 -right-24 h-96 w-96 rounded-full bg-cyan-400/20 blur-3xl"></div>
+        <div class="absolute bottom-0 left-1/3 h-80 w-80 rounded-full bg-indigo-400/20 blur-3xl"></div>
     </div>
 
+    <main class="relative mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+        <section class="animate-float-in mb-8">
+            <div class="flex flex-col gap-4 rounded-3xl border border-white/20 bg-white/10 p-6 text-white shadow-2xl backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <p class="mb-2 inline-flex rounded-full bg-blue-400/20 px-3 py-1 text-sm font-medium text-blue-100 ring-1 ring-blue-200/30">
+                        Receipt Manager
+                    </p>
+                    <h1 class="text-3xl font-bold tracking-tight sm:text-5xl">
+                        Smart Receipt Dashboard
+                    </h1>
+                    <p class="mt-3 max-w-2xl text-sm text-blue-100 sm:text-base">
+                        Upload PDF receipts, view extracted merchant details, totals, and purchase dates in one clean dashboard.
+                    </p>
+                </div>
+
+                <div class="rounded-2xl bg-white/10 p-4 text-sm text-blue-50 ring-1 ring-white/20">
+                    <p class="font-semibold">API Endpoint</p>
+                    <p id="apiBaseUrlLabel" class="mt-1 break-all text-blue-100"></p>
+                </div>
+            </div>
+        </section>
+
+        <div id="message-area" class="hidden fixed right-4 top-4 z-50 max-w-md rounded-2xl px-5 py-4 shadow-2xl animate-float-in"></div>
+
+        <section class="grid gap-6 lg:grid-cols-[0.9fr_1.5fr]">
+            <!-- Upload Card -->
+            <div class="glass-card animate-float-in rounded-3xl p-6 shadow-2xl" style="animation-delay: 80ms;">
+                <div class="mb-5 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-900">Upload Receipt</h2>
+                        <p class="mt-1 text-sm text-slate-500">Only PDF files are supported.</p>
+                    </div>
+
+                    <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M12 12v9m0-9l-3 3m3-3l3 3" />
+                        </svg>
+                    </div>
+                </div>
+
+                <form id="uploadForm" class="space-y-5">
+                    <label for="receiptFile" class="group flex cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed border-blue-300 bg-blue-50/70 px-6 py-10 text-center transition duration-300 hover:-translate-y-1 hover:border-blue-500 hover:bg-blue-100/80 hover:shadow-xl">
+                        <div class="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-blue-600 shadow-md transition group-hover:scale-110">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v12m0-12l-4 4m4-4l4 4M4 20h16" />
+                            </svg>
+                        </div>
+
+                        <span class="text-base font-semibold text-slate-800">Choose a PDF receipt</span>
+                        <span id="selectedFileName" class="mt-2 text-sm text-slate-500">No file selected</span>
+
+                        <input
+                            type="file"
+                            id="receiptFile"
+                            name="file"
+                            accept="application/pdf"
+                            required
+                            class="hidden"
+                        />
+                    </label>
+
+                    <button
+                        id="uploadBtn"
+                        type="submit"
+                        class="group flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-semibold text-white shadow-lg shadow-blue-600/30 transition duration-300 hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                        <span id="uploadBtnText">Upload & Get ID</span>
+
+                        <svg id="uploadSpinner" class="hidden h-5 w-5 animate-spin text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                        </svg>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Receipts List -->
+            <div class="glass-card animate-float-in rounded-3xl p-6 shadow-2xl" style="animation-delay: 160ms;">
+                <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-900">Receipts List</h2>
+                        <p class="mt-1 text-sm text-slate-500">Recently uploaded and processed receipts.</p>
+                    </div>
+
+                    <button
+                        onclick="fetchReceipts()"
+                        class="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:-translate-y-0.5 hover:bg-slate-800"
+                    >
+                        Refresh
+                    </button>
+                </div>
+
+                <div id="tableLoader" class="hidden space-y-3 py-4">
+                    <div class="skeleton h-12 rounded-2xl"></div>
+                    <div class="skeleton h-12 rounded-2xl"></div>
+                    <div class="skeleton h-12 rounded-2xl"></div>
+                </div>
+
+                <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                    <div class="overflow-x-auto">
+                        <table id="receiptsTable" class="min-w-full text-left text-sm">
+                            <thead class="bg-slate-900 text-white">
+                                <tr>
+                                    <th class="px-4 py-3 font-semibold">File ID</th>
+                                    <th class="px-4 py-3 font-semibold">File Name</th>
+                                    <th class="px-4 py-3 font-semibold">Merchant</th>
+                                    <th class="px-4 py-3 font-semibold">Total</th>
+                                    <th class="px-4 py-3 font-semibold">Purchase Date</th>
+                                    <th class="px-4 py-3 font-semibold">View</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Detail Panel -->
+        <section
+            id="receiptDetail"
+            class="glass-card mt-8 hidden rounded-3xl p-6 shadow-2xl animate-float-in"
+        >
+            <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-900">Receipt Details</h2>
+                    <p class="mt-1 text-sm text-slate-500">Raw JSON response for the selected receipt.</p>
+                </div>
+
+                <button
+                    onclick="hideDetails()"
+                    class="rounded-2xl bg-red-500 px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:-translate-y-0.5 hover:bg-red-600"
+                >
+                    Close Details
+                </button>
+            </div>
+
+            <pre id="detailContent" class="max-h-[520px] overflow-auto rounded-2xl border border-slate-200 bg-slate-950 p-5 text-sm text-slate-100 shadow-inner"></pre>
+        </section>
+    </main>
+
     <script>
-        const API_BASE_URL = 'http://127.0.0.1:8000/api';
+        /**
+         * API_BASE_URL is runtime-config driven.
+         *
+         * For plain HTML, create a config.js file:
+         * window.__APP_CONFIG__ = {
+         *   API_BASE_URL: "http://127.0.0.1:8000/api"
+         * };
+         *
+         * Fallback is kept for local development.
+         */
+        const API_BASE_URL =
+            window.__APP_CONFIG__?.API_BASE_URL ||
+            window.API_BASE_URL ||
+            'http://127.0.0.1:8000/api';
+
         const uploadForm = document.getElementById('uploadForm');
         const receiptsTableBody = document.querySelector('#receiptsTable tbody');
         const messageArea = document.getElementById('message-area');
@@ -67,78 +245,136 @@
         const uploadBtnText = document.getElementById('uploadBtnText');
         const uploadSpinner = document.getElementById('uploadSpinner');
         const tableLoader = document.getElementById('tableLoader');
+        const receiptFile = document.getElementById('receiptFile');
+        const selectedFileName = document.getElementById('selectedFileName');
+        const apiBaseUrlLabel = document.getElementById('apiBaseUrlLabel');
 
-        function displayMessage(message, type) {
+        apiBaseUrlLabel.textContent = API_BASE_URL;
+
+        receiptFile.addEventListener('change', () => {
+            selectedFileName.textContent = receiptFile.files[0]?.name || 'No file selected';
+        });
+
+        function displayMessage(message, type = 'info') {
+            const styles = {
+                success: 'bg-emerald-500 text-white',
+                error: 'bg-red-500 text-white',
+                info: 'bg-blue-500 text-white'
+            };
+
             messageArea.textContent = message;
-            messageArea.className = `mb-4 message ${type === 'success' ? 'bg-green-100 text-green-800 border border-green-300' : type === 'error' ? 'bg-red-100 text-red-800 border border-red-300' : 'bg-blue-100 text-blue-800 border border-blue-300'} px-4 py-2 rounded`;
+            messageArea.className = `fixed right-4 top-4 z-50 max-w-md rounded-2xl px-5 py-4 shadow-2xl animate-float-in ${styles[type] || styles.info}`;
             messageArea.style.display = 'block';
+
             setTimeout(() => {
                 messageArea.style.display = 'none';
-            }, 10000);
+            }, 6000);
+        }
+
+        function setUploadLoading(isLoading) {
+            uploadBtn.disabled = isLoading;
+            uploadBtnText.textContent = isLoading ? 'Uploading...' : 'Upload & Get ID';
+            uploadSpinner.classList.toggle('hidden', !isLoading);
         }
 
         async function fetchReceipts() {
-            tableLoader.classList.remove('hidden'); // Show loader
-            receiptsTableBody.innerHTML = ''; // Optionally clear table while loading
+            tableLoader.classList.remove('hidden');
+            receiptsTableBody.innerHTML = '';
+
             try {
                 const response = await fetch(`${API_BASE_URL}/receipts/`);
+
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
+
                 const receipts = await response.json();
-                renderReceipts(receipts);
+                renderReceipts(Array.isArray(receipts) ? receipts : []);
             } catch (error) {
                 console.error('Error fetching receipts:', error);
                 displayMessage(`Failed to fetch receipts: ${error.message}`, 'error');
+                renderReceipts([]);
             } finally {
-                tableLoader.classList.add('hidden'); // Hide loader
+                tableLoader.classList.add('hidden');
             }
         }
 
         function renderReceipts(receipts) {
             receiptsTableBody.innerHTML = '';
+
             if (receipts.length === 0) {
-                receiptsTableBody.innerHTML = '<tr><td colspan="6" class="text-center py-4">No receipts found. Upload one!</td></tr>';
+                receiptsTableBody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="px-4 py-10 text-center text-slate-500">
+                            <div class="flex flex-col items-center justify-center gap-2">
+                                <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6M7 4h10l2 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6a2 2 0 012-2z" />
+                                    </svg>
+                                </div>
+                                <p class="font-semibold text-slate-700">No receipts found</p>
+                                <p class="text-sm">Upload a PDF receipt to get started.</p>
+                            </div>
+                        </td>
+                    </tr>
+                `;
                 return;
             }
 
-            receipts.forEach(receipt => {
+            receipts.forEach((receipt, index) => {
                 const row = receiptsTableBody.insertRow();
-                const fileId = receipt.receipt_file_details ? receipt.receipt_file_details.id : 'N/A';
-                const fileName = receipt.receipt_file_details ? receipt.receipt_file_details.file_name : 'N/A';
-                const merchant = receipt.merchant_name || 'N/A';
-                const total = receipt.total_amount ? receipt.total_amount : 'N/A';
-                const purchaseDate = receipt.purchased_at ? new Date(receipt.purchased_at).toLocaleDateString() : 'N/A';
+                row.className = 'row-animate transition hover:bg-blue-50';
+                row.style.animationDelay = `${index * 45}ms`;
 
-                row.insertCell().textContent = fileId;
-                row.insertCell().textContent = fileName;
-                row.insertCell().textContent = merchant;
-                row.insertCell().textContent = total;
-                row.insertCell().textContent = purchaseDate;
+                const fileId = receipt.receipt_file_details?.id ?? 'N/A';
+                const fileName = receipt.receipt_file_details?.file_name ?? 'N/A';
+                const merchant = receipt.merchant_name || 'N/A';
+                const total = receipt.total_amount || 'N/A';
+                const purchaseDate = receipt.purchased_at
+                    ? new Date(receipt.purchased_at).toLocaleDateString()
+                    : 'N/A';
+
+                addCell(row, fileId, 'font-semibold text-slate-900');
+                addCell(row, fileName, 'max-w-[220px] truncate text-slate-700');
+                addCell(row, merchant, 'text-slate-700');
+                addCell(row, total, 'font-semibold text-emerald-700');
+                addCell(row, purchaseDate, 'text-slate-700');
 
                 const viewCell = row.insertCell();
+                viewCell.className = 'px-4 py-3';
+
                 const viewBtn = document.createElement('button');
                 viewBtn.textContent = 'View Details';
-                viewBtn.className = 'bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700';
+                viewBtn.className = 'rounded-xl bg-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-md transition hover:-translate-y-0.5 hover:bg-blue-700';
                 viewBtn.onclick = () => showReceiptDetails(receipt.id);
+
                 viewCell.appendChild(viewBtn);
             });
         }
 
+        function addCell(row, value, extraClass = '') {
+            const cell = row.insertCell();
+            cell.textContent = value;
+            cell.className = `px-4 py-3 ${extraClass}`;
+            return cell;
+        }
+
         uploadForm.addEventListener('submit', async (event) => {
             event.preventDefault();
-            const fileInput = document.getElementById('receiptFile');
-            const file = fileInput.files[0];
+
+            const file = receiptFile.files[0];
 
             if (!file) {
                 displayMessage('Please select a PDF file to upload.', 'error');
                 return;
             }
 
-            // Show loading spinner
-            uploadBtn.disabled = true;
-            uploadBtnText.textContent = 'Uploading...';
-            uploadSpinner.classList.remove('hidden');
+            if (file.type !== 'application/pdf') {
+                displayMessage('Only PDF files are allowed.', 'error');
+                return;
+            }
+
+            setUploadLoading(true);
 
             const formData = new FormData();
             formData.append('file', file);
@@ -146,45 +382,53 @@
             try {
                 const response = await fetch(`${API_BASE_URL}/upload/`, {
                     method: 'POST',
-                    body: formData,
+                    body: formData
                 });
 
-                const data = await response.json();
+                const data = await response.json().catch(() => ({}));
 
                 if (!response.ok) {
-                    throw new Error(data.error || `Upload failed with status: ${response.status}`);
+                    throw new Error(data.error || data.detail || `Upload failed with status: ${response.status}`);
                 }
 
-                displayMessage(`File "${data.file_name}" uploaded successfully! ReceiptFile ID: ${data.id}`, 'success');
-                fileInput.value = '';
+                displayMessage(`File "${data.file_name || file.name}" uploaded successfully! ReceiptFile ID: ${data.id}`, 'success');
+
+                receiptFile.value = '';
+                selectedFileName.textContent = 'No file selected';
+
                 await fetchReceipts();
             } catch (error) {
                 console.error('Upload Error:', error);
                 displayMessage(`Upload failed: ${error.message}`, 'error');
             } finally {
-                uploadBtn.disabled = false;
-                uploadBtnText.textContent = 'Upload & Get ID';
-                uploadSpinner.classList.add('hidden');
+                setUploadLoading(false);
             }
         });
 
         async function showReceiptDetails(receiptId) {
+            receiptDetail.classList.remove('hidden');
+            detailContent.textContent = 'Loading receipt details...';
+
             try {
                 const response = await fetch(`${API_BASE_URL}/receipts/${receiptId}/`);
+
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
+
                 const detail = await response.json();
+
                 detailContent.textContent = JSON.stringify(detail, null, 2);
-                receiptDetail.style.display = 'block';
+                receiptDetail.scrollIntoView({ behavior: 'smooth', block: 'start' });
             } catch (error) {
                 console.error('Error fetching receipt details:', error);
+                receiptDetail.classList.add('hidden');
                 displayMessage(`Failed to fetch details for Receipt ID ${receiptId}: ${error.message}`, 'error');
             }
         }
 
         function hideDetails() {
-            receiptDetail.style.display = 'none';
+            receiptDetail.classList.add('hidden');
             detailContent.textContent = '';
         }
 
